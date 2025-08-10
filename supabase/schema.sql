@@ -1,4 +1,4 @@
--- Enable required extensions
+create extension if not exists pgcrypto;
 create extension if not exists vector;
 
 -- desarrolladoras
@@ -59,7 +59,7 @@ create or replace view public.proyectos_with_counts as
 select p.*, count(l.*) as leads_count
 from public.proyectos p
 left join public.leads l on l.proyecto_id = p.id
-group by p.id; 
+group by p.id;
 
 -- RPC: cosine similarity based ANN search limited by proyecto_id
 create or replace function public.match_vectores_rag(
