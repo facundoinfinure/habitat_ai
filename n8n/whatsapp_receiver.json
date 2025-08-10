@@ -1,0 +1,22 @@
+{
+  "name": "whatsapp_receiver",
+  "nodes": [
+    {
+      "parameters": {"path": "twilio-whatsapp"},
+      "id": "webhook",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [200, 200]
+    },
+    {
+      "parameters": {"url": "={{$json[\"query\"][\"conversation_logic_url\"]}}", "options": {}},
+      "id": "forward",
+      "name": "HTTP Request",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 2,
+      "position": [450, 200]
+    }
+  ],
+  "connections": {"Webhook": {"main": [[{"node": "HTTP Request","type": "main","index": 0}]]}}
+}

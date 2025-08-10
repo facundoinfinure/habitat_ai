@@ -1,0 +1,11 @@
+{
+  "functions": {
+    "api/main.py": {
+      "runtime": "python3.11"
+    }
+  },
+  "routes": [
+    { "src": "/api/query", "dest": "api/main.py" },
+    { "src": "/(.*)", "status": 404, "dest": "api/main.py" }
+  ]
+}

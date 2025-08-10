@@ -1,0 +1,8 @@
+{
+  "name": "scoring_delivery",
+  "nodes": [
+    {"parameters": {"path": "scoring-delivery"}, "id": "webhook", "name": "Webhook", "type": "n8n-nodes-base.webhook", "typeVersion": 1, "position": [200, 200]},
+    {"parameters": {"functionCode": "// 1) Request consent\n// 2) Call Nosis/Veraz API\n// 3) Update Supabase lead\n// 4) Push to CRM (Tokko/etc)\nreturn items;"}, "id": "func", "name": "Function", "type": "n8n-nodes-base.function", "typeVersion": 1, "position": [450, 200]}
+  ],
+  "connections": {"Webhook": {"main": [[{"node": "Function","type": "main","index": 0}]]}}
+}
