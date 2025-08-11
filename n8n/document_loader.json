@@ -1,8 +1,9 @@
 {
   "name": "document_loader",
   "nodes": [
-    {"parameters": {"mode": "trigger", "events": ["manual"], "interval": 60}, "id": "trigger", "name": "Cron", "type": "n8n-nodes-base.cron", "typeVersion": 1, "position": [200, 200]},
-    {"parameters": {"functionCode": "// TODO: Load from Google Drive, chunk, embed, and upsert into Supabase\nreturn items;"}, "id": "func", "name": "Function", "type": "n8n-nodes-base.function", "typeVersion": 1, "position": [450, 200]}
+    { "parameters": { "mode": "trigger", "cronExpression": "0 * * * *" }, "id": "cron", "name": "Cron", "type": "n8n-nodes-base.cron", "typeVersion": 1, "position": [200, 200] },
+    { "parameters": { "functionCode": "// TODO: Listar archivos de Drive y extraer texto\n// return items como [{ json: { proyecto_id, texts: [...] } }]\nreturn items;" }, "id": "func", "name": "Function", "type": "n8n-nodes-base.function", "typeVersion": 1, "position": [420, 200] },
+    { "parameters": { "url": "https://habitat-ai.vercel.app/api/embed", "method": "POST", "jsonParameters": true, "options": {}, "bodyParametersJson": "={\n  \"proyecto_id\": $json.proyecto_id,\n  \"texts\": $json.texts\n}" }, "id": "http", "name": "HTTP Request", "type": "n8n-nodes-base.httpRequest", "typeVersion": 2, "position": [680, 200] }
   ],
-  "connections": {"Cron": {"main": [[{"node": "Function","type": "main","index": 0}]]}}
+  "connections": { "Cron": { "main": [[{ "node": "Function", "type": "main", "index": 0 }]] }, "Function": { "main": [[{ "node": "HTTP Request", "type": "main", "index": 0 }]] } }
 }

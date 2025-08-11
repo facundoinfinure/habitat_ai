@@ -2,7 +2,7 @@
   "name": "whatsapp_receiver",
   "nodes": [
     {
-      "parameters": {"path": "twilio-whatsapp"},
+      "parameters": { "path": "twilio-whatsapp", "methods": ["POST"] },
       "id": "webhook",
       "name": "Webhook",
       "type": "n8n-nodes-base.webhook",
@@ -10,7 +10,12 @@
       "position": [200, 200]
     },
     {
-      "parameters": {"url": "={{$json[\"query\"][\"conversation_logic_url\"]}}", "options": {}},
+      "parameters": {
+        "url": "https://habitat-ai.vercel.app/api/twilio/inbound",
+        "options": {},
+        "sendBinaryData": false,
+        "jsonParameters": false
+      },
       "id": "forward",
       "name": "HTTP Request",
       "type": "n8n-nodes-base.httpRequest",
@@ -18,5 +23,5 @@
       "position": [450, 200]
     }
   ],
-  "connections": {"Webhook": {"main": [[{"node": "HTTP Request","type": "main","index": 0}]]}}
+  "connections": { "Webhook": { "main": [[{ "node": "HTTP Request", "type": "main", "index": 0 }]] } }
 }

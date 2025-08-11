@@ -2,7 +2,7 @@
   "name": "conversation_logic",
   "nodes": [
     {"parameters": {"path": "conversation-logic"}, "id": "webhook", "name": "Webhook", "type": "n8n-nodes-base.webhook", "typeVersion": 1, "position": [200, 200]},
-    {"parameters": {"functionCode": "// Implement If/Else branching and 5-step flow here\nreturn items;"}, "id": "func", "name": "Function", "type": "n8n-nodes-base.function", "typeVersion": 1, "position": [450, 200]}
+    {"parameters": {"functionCode": "// Conversación manejada en /api/twilio/inbound. Este flujo queda opcional para lógica adicional.\nreturn items;"}, "id": "func", "name": "Function", "type": "n8n-nodes-base.function", "typeVersion": 1, "position": [450, 200]}
   ],
   "connections": {"Webhook": {"main": [[{"node": "Function","type": "main","index": 0}]]}}
 }

@@ -2,7 +2,7 @@
   "name": "rag_engine",
   "nodes": [
     {"parameters": {"path": "rag-engine"}, "id": "webhook", "name": "Webhook", "type": "n8n-nodes-base.webhook", "typeVersion": 1, "position": [200, 200]},
-    {"parameters": {"url": "={{$json[\"backend_url\"] || \"https://your-backend.vercel.app/api/query\"}}", "method": "POST", "jsonParameters": true, "options": {}, "bodyParametersJson": "={\n  \"proyecto_id\": $json.proyecto_id,\n  \"pregunta\": $json.pregunta\n}"}, "id": "http", "name": "HTTP Request", "type": "n8n-nodes-base.httpRequest", "typeVersion": 2, "position": [450, 200]}
+    {"parameters": {"url": "https://habitat-ai.vercel.app/api/query", "method": "POST", "jsonParameters": true, "options": {}, "bodyParametersJson": "={\n  \"proyecto_id\": $json.proyecto_id,\n  \"pregunta\": $json.pregunta\n}"}, "id": "http", "name": "HTTP Request", "type": "n8n-nodes-base.httpRequest", "typeVersion": 2, "position": [450, 200]}
   ],
   "connections": {"Webhook": {"main": [[{"node": "HTTP Request","type": "main","index": 0}]]}}
 }

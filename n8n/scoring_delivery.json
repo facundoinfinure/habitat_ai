@@ -2,7 +2,9 @@
   "name": "scoring_delivery",
   "nodes": [
     {"parameters": {"path": "scoring-delivery"}, "id": "webhook", "name": "Webhook", "type": "n8n-nodes-base.webhook", "typeVersion": 1, "position": [200, 200]},
-    {"parameters": {"functionCode": "// 1) Request consent\n// 2) Call Nosis/Veraz API\n// 3) Update Supabase lead\n// 4) Push to CRM (Tokko/etc)\nreturn items;"}, "id": "func", "name": "Function", "type": "n8n-nodes-base.function", "typeVersion": 1, "position": [450, 200]}
+    {"parameters": {"url": "https://habitat-ai.vercel.app/api/scoring", "method": "POST"}, "id": "score", "name": "HTTP Request", "type": "n8n-nodes-base.httpRequest", "typeVersion": 2, "position": [440, 180]},
+    {"parameters": {"functionCode": "// Read score from previous node and craft update\nconst score = $json[\"data\"]?.score || $items(0)[1].json.score || 700\nreturn [{ json: { score } }]"}, "id": "fn1", "name": "Function", "type": "n8n-nodes-base.function", "typeVersion": 1, "position": [680, 180]},
+    {"parameters": {"url": "https://habitat-ai.vercel.app/api/crm/tokko", "method": "POST", "jsonParameters": true, "options": {}, "bodyParametersJson": "={\n  \"lead_id\": $json.lead_id,\n  \"proyecto_id\": $json.proyecto_id\n}"}, "id": "tokko", "name": "HTTP Request1", "type": "n8n-nodes-base.httpRequest", "typeVersion": 2, "position": [680, 340]}
   ],
-  "connections": {"Webhook": {"main": [[{"node": "Function","type": "main","index": 0}]]}}
+  "connections": {"Webhook": {"main": [[{"node": "HTTP Request","type": "main","index": 0}],[{"node": "HTTP Request1","type": "main","index": 0}]]}, "HTTP Request": {"main": [[{"node": "Function","type": "main","index": 0}]]}}
 }
