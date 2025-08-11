@@ -24,6 +24,12 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
     }
   }, [router])
 
-  if (!ready) return null
+  if (!ready) {
+    return (
+      <div className="flex min-h-screen items-center justify-center text-sm text-gray-600">
+        Cargando…
+      </div>
+    )
+  }
   return <>{children}</>
 }
