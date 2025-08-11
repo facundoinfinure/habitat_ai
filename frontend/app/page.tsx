@@ -59,7 +59,9 @@ export default function Page() {
     const total = leads.length
     const qualified = leads.filter((l) => l.status?.toLowerCase() === 'qualified').length
     const highPotential = leads.filter((l) => (l.scoring_financiero ?? 0) >= 700).length
-    return { total, qualified, highPotential }
+    const scores = leads.map((l) => l.scoring_financiero).filter((n) => typeof n === 'number') as number[]
+    const avgScore = scores.length ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length) : 0
+    return { total, qualified, highPotential, avgScore }
   }, [leads])
 
   return (

@@ -1,0 +1,20 @@
+### RAG Query
+POST https://habitat-ai.vercel.app/api/query
+Content-Type: application/json
+
+{
+  "proyecto_id": "<UUID>",
+  "pregunta": "¿Cuáles son las amenities disponibles?"
+}
+
+### RAG Embed
+POST https://habitat-ai.vercel.app/api/embed
+Content-Type: application/json
+
+{
+  "proyecto_id": "<UUID>",
+  "texts": ["Amenity 1: pileta climatizada", "Amenity 2: gimnasio" ]
+}
+
+### Scoring
+POST https://habitat-ai.vercel.app/api/scoring
