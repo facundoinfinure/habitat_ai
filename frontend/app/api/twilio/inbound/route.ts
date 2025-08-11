@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import OpenAI from 'openai'
+import crypto from 'crypto'
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
 
@@ -9,6 +10,26 @@ function getSupabaseServiceClient() {
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY
   if (!url || !key) throw new Error('Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY')
   return createClient(url, key)
+}
+
+function verifyTwilioSignature(req: Request, form: FormData) {
+  const token = process.env.TWILIO_AUTH_TOKEN
+  const headerSig = req.headers.get('x-twilio-signature') || ''
+  if (!token) throw new Error('Missing Twilio auth token')
+
+  // Build the signature base string: URL + concat of sorted params key+value
+  const url = new URL(req.url)
+  const baseUrl = `${url.origin}${url.pathname}`
+  const params: Record<string, string> = {}
+  for (const [k, v] of form.entries()) {
+    params[k] = String(v)
+  }
+  const data = Object.keys(params)
+    .sort()
+    .reduce((acc, key) => acc + key + params[key], baseUrl)
+
+  const expected = crypto.createHmac('sha1', token).update(Buffer.from(data, 'utf-8')).digest('base64')
+  return crypto.timingSafeEqual(Buffer.from(headerSig), Buffer.from(expected))
 }
 
 async function sendWhatsApp(to: string, body: string) {
@@ -69,9 +90,25 @@ function isAffirmative(text: string) {
   return ['si', 'sí', 'sì', 'yes', 'ok', 'dale', 'claro'].some((w) => t.includes(w))
 }
 
-async function performScoring(): Promise<number> {
-  // Placeholder scoring to simulate Nosis/Veraz
+async function performScoringServerSide(): Promise<number> {
+  // If NOSIS/VERAZ envs exist, call internal scoring endpoint (which will call provider)
+  const res = await fetch(`${process.env.PUBLIC_BASE_URL || ''}/api/scoring`, {
+    method: 'POST'
+  }).catch(() => undefined)
+  if (res && res.ok) {
+    const json = await res.json()
+    if (typeof json?.score === 'number') return json.score
+  }
+  // Fallback
   return Math.floor(650 + Math.random() * 150)
+}
+
+async function deliverToCRM(payload: any) {
+  await fetch(`${process.env.PUBLIC_BASE_URL || ''}/api/crm/tokko`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload)
+  }).catch(() => undefined)
 }
 
 async function answerWithRAG(proyectoId: string, pregunta: string): Promise<string> {
@@ -102,9 +139,17 @@ async function answerWithRAG(proyectoId: string, pregunta: string): Promise<stri
 
 export async function POST(req: Request) {
   try {
-    // Twilio sends application/x-www-form-urlencoded
     const form = await req.formData()
-    const from = String(form.get('From') || '') // e.g., whatsapp:+54911...
+
+    // Verify Twilio signature
+    try {
+      const ok = verifyTwilioSignature(req, form)
+      if (!ok) return NextResponse.json({ error: 'Invalid signature' }, { status: 403 })
+    } catch (e) {
+      return NextResponse.json({ error: 'Signature verification failed' }, { status: 403 })
+    }
+
+    const from = String(form.get('From') || '')
     const to = String(form.get('To') || '')
     const body = String(form.get('Body') || '').trim()
 
@@ -119,7 +164,6 @@ export async function POST(req: Request) {
     const lead = await upsertLead(from, project.id)
     const supabase = getSupabaseServiceClient()
 
-    // Simple heuristic: if user asks a question, use RAG first
     if (body.includes('?')) {
       const rag = await answerWithRAG(project.id, body)
       if (rag) await sendWhatsApp(from, rag)
@@ -133,14 +177,12 @@ export async function POST(req: Request) {
         `¡Hola! Soy Habitat AI de ${project.nombre}. ¿La propiedad es para vivir o como inversión?`
       )
     } else if (step === 2) {
-      // Save step 1
       await supabase
         .from('leads')
         .update({ purchase_motive: body, last_interaction_at: new Date().toISOString() })
         .eq('id', lead.id)
       await sendWhatsApp(from, 'Gracias. ¿Cuál es tu presupuesto estimado para esta compra?')
     } else if (step === 3) {
-      // Save step 2
       await supabase
         .from('leads')
         .update({ budget_estimate: body, last_interaction_at: new Date().toISOString() })
@@ -150,32 +192,29 @@ export async function POST(req: Request) {
         '¡Genial! ¿Cuál es tu plazo ideal para mudarte? Por ejemplo: 3-6 meses, 6-12 meses o más de 1 año.'
       )
     } else if (step === 4) {
-      // Save step 3
       await supabase
         .from('leads')
         .update({ timeline_estimate: body, last_interaction_at: new Date().toISOString() })
         .eq('id', lead.id)
       await sendWhatsApp(from, '¿Vas a usar un crédito hipotecario para esta compra? (sí/no)')
     } else if (step === 5) {
-      // Save step 4
       const financingNeeded = isAffirmative(body)
       await supabase
         .from('leads')
         .update({ financing_needed: financingNeeded, last_interaction_at: new Date().toISOString() })
         .eq('id', lead.id)
-
       await sendWhatsApp(
         from,
         'Podemos ayudarte a pre-aprobarte un préstamo. ¿Nos das tu consentimiento para un chequeo rápido? (sí/no)'
       )
     } else if (step === 6) {
-      // Consent + scoring + handoff
       if (isAffirmative(body)) {
-        const score = await performScoring()
+        const score = await performScoringServerSide()
         await supabase
           .from('leads')
           .update({ scoring_financiero: score, status: 'Qualified', last_interaction_at: new Date().toISOString() })
           .eq('id', lead.id)
+        await deliverToCRM({ lead_id: lead.id, proyecto_id: project.id })
         await sendWhatsApp(
           from,
           '¡Excelente! Ya tenemos todo para conectarte con un asesor. ¿Cuál es el mejor horario para llamarte?'
@@ -184,13 +223,12 @@ export async function POST(req: Request) {
         await sendWhatsApp(from, 'Entendido. Si más adelante querés avanzar con la pre-aprobación, avisame.')
       }
     } else {
-      // After qualified, capture call time into history
-      const history = Array.isArray(lead.historial_interaccion) ? lead.historial_interaccion : []
-      history.push({ ts: new Date().toISOString(), agent_call_time: body })
-      await supabase
+      const { data: updatedLead } = await getSupabaseServiceClient()
         .from('leads')
-        .update({ historial_interaccion: history, last_interaction_at: new Date().toISOString() })
+        .update({ historial_interaccion: ((lead.historial_interaccion || []) as any[]).concat([{ ts: new Date().toISOString(), agent_call_time: body }]), last_interaction_at: new Date().toISOString() })
         .eq('id', lead.id)
+        .select('*')
+        .single()
       await sendWhatsApp(from, '¡Gracias! Un asesor te contactará en ese horario.')
     }
 

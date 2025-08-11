@@ -16,6 +16,13 @@ export function Header({ selectedProjectId, onSelect }: { selectedProjectId?: st
     query.then(({ data }) => setProjects(data ?? []))
   }, [])
 
+  useEffect(() => {
+    const key = 'habitat.selectedProjectId'
+    const initial = typeof window !== 'undefined' ? window.localStorage.getItem(key) : ''
+    if (!selectedProjectId && initial) onSelect(initial)
+    if (selectedProjectId) window.localStorage.setItem(key, selectedProjectId)
+  }, [selectedProjectId, onSelect])
+
   return (
     <div className="flex items-center justify-between py-4">
       <h1 className="text-xl font-semibold">Habitat AI</h1>
