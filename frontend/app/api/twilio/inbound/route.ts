@@ -17,13 +17,10 @@ function verifyTwilioSignature(req: Request, form: FormData) {
   const headerSig = req.headers.get('x-twilio-signature') || ''
   if (!token) throw new Error('Missing Twilio auth token')
 
-  // Build the signature base string: URL + concat of sorted params key+value
   const url = new URL(req.url)
   const baseUrl = `${url.origin}${url.pathname}`
   const params: Record<string, string> = {}
-  for (const [k, v] of form.entries()) {
-    params[k] = String(v)
-  }
+  for (const [k, v] of form.entries()) params[k] = String(v)
   const data = Object.keys(params)
     .sort()
     .reduce((acc, key) => acc + key + params[key], baseUrl)
@@ -90,21 +87,17 @@ function isAffirmative(text: string) {
   return ['si', 'sí', 'sì', 'yes', 'ok', 'dale', 'claro'].some((w) => t.includes(w))
 }
 
-async function performScoringServerSide(): Promise<number> {
-  // If NOSIS/VERAZ envs exist, call internal scoring endpoint (which will call provider)
-  const res = await fetch(`${process.env.PUBLIC_BASE_URL || ''}/api/scoring`, {
-    method: 'POST'
-  }).catch(() => undefined)
+async function performScoringServerSide(origin: string): Promise<number> {
+  const res = await fetch(`${origin}/api/scoring`, { method: 'POST' }).catch(() => undefined)
   if (res && res.ok) {
     const json = await res.json()
     if (typeof json?.score === 'number') return json.score
   }
-  // Fallback
   return Math.floor(650 + Math.random() * 150)
 }
 
-async function deliverToCRM(payload: any) {
-  await fetch(`${process.env.PUBLIC_BASE_URL || ''}/api/crm/tokko`, {
+async function deliverToCRM(origin: string, payload: any) {
+  await fetch(`${origin}/api/crm/tokko`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload)
@@ -141,7 +134,6 @@ export async function POST(req: Request) {
   try {
     const form = await req.formData()
 
-    // Verify Twilio signature
     try {
       const ok = verifyTwilioSignature(req, form)
       if (!ok) return NextResponse.json({ error: 'Invalid signature' }, { status: 403 })
@@ -170,6 +162,8 @@ export async function POST(req: Request) {
     }
 
     const step = determineNextStep(lead)
+
+    const origin = new URL(req.url).origin
 
     if (step === 1) {
       await sendWhatsApp(
@@ -209,12 +203,12 @@ export async function POST(req: Request) {
       )
     } else if (step === 6) {
       if (isAffirmative(body)) {
-        const score = await performScoringServerSide()
+        const score = await performScoringServerSide(origin)
         await supabase
           .from('leads')
           .update({ scoring_financiero: score, status: 'Qualified', last_interaction_at: new Date().toISOString() })
           .eq('id', lead.id)
-        await deliverToCRM({ lead_id: lead.id, proyecto_id: project.id })
+        await deliverToCRM(origin, { lead_id: lead.id, proyecto_id: project.id })
         await sendWhatsApp(
           from,
           '¡Excelente! Ya tenemos todo para conectarte con un asesor. ¿Cuál es el mejor horario para llamarte?'
@@ -223,12 +217,10 @@ export async function POST(req: Request) {
         await sendWhatsApp(from, 'Entendido. Si más adelante querés avanzar con la pre-aprobación, avisame.')
       }
     } else {
-      const { data: updatedLead } = await getSupabaseServiceClient()
+      await getSupabaseServiceClient()
         .from('leads')
         .update({ historial_interaccion: ((lead.historial_interaccion || []) as any[]).concat([{ ts: new Date().toISOString(), agent_call_time: body }]), last_interaction_at: new Date().toISOString() })
         .eq('id', lead.id)
-        .select('*')
-        .single()
       await sendWhatsApp(from, '¡Gracias! Un asesor te contactará en ese horario.')
     }
 

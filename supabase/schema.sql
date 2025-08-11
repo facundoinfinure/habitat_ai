@@ -80,4 +80,23 @@ language sql stable parallel safe as $$
   where v.proyecto_id = proyecto
   order by v.embedding <=> query_embedding
   limit match_count
-$$; 
+$$;
+
+-- RLS: enable and set minimal policies
+alter table public.desarrolladoras enable row level security;
+-- no policies for anon/auth (blocked), service role bypasses
+
+alter table public.proyectos enable row level security;
+create policy proyectos_select_anon_auth on public.proyectos
+  for select
+  using (true);
+
+alter table public.leads enable row level security;
+create policy leads_select_anon_auth on public.leads
+  for select
+  using (true);
+-- ensure old row available for realtime diffs
+alter table public.leads replica identity full;
+
+alter table public.vectores_rag enable row level security;
+-- no select policy: blocked for anon/auth; only service role via server endpoints 
